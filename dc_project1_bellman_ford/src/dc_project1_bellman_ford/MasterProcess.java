@@ -79,11 +79,14 @@ public class MasterProcess {
 		Iterator<BlockingQueue<Message>> Iter = ProcessRoundQ.iterator();
 		BlockingQueue<Message> Q;
 		Message Msg;
-		
-		while(Iter.hasNext()){
-			Q = Iter.next();
-			Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
-			Q.add(Msg);
+		MasterQ.clear();
+		synchronized (this) {
+			while(Iter.hasNext()){
+				Q = Iter.next();
+				Q.clear();
+				Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
+				Q.add(Msg);
+			}
 		}
 	}
 	
