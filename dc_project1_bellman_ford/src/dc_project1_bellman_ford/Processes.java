@@ -25,7 +25,7 @@ public class Processes implements Runnable{
 	//List to keep check of child nodes in shortest path tree.
 	private ArrayList<Processes> Child = new ArrayList<Processes>();
 	private Processes Parent;
-	
+	int RoundNo = 0;
 	
 	public Processes(int processId) {
 		this.ProcessId = processId;
@@ -51,10 +51,45 @@ public class Processes implements Runnable{
 	}
 
 	
+	public void setQMaster(BlockingQueue<Message> qMaster) {
+		QMaster = qMaster;
+	}
+
+	public ArrayList<Message> getSendList() {
+		return SendList;
+	}
+
+	public void setQRound(BlockingQueue<Message> qRound) {
+		QRound = qRound;
+	}
+
+	public void setQIn(BlockingQueue<Message> qIn) {
+		QIn = qIn;
+	}
+
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		
+		while(true){
+			Message Msg = null;
+			try{
+				Msg = QRound.take();
+			}
+			catch(InterruptedException e){
+				e.printStackTrace();
+			}
+			if(Msg.getMtype() == Message.MessageType.NEXT){
+				RoundNo++;
+				System.out.println("Process:"+ProcessId+" Round:"+RoundNo);
+				Msg = new Message(this.ProcessId, Message.MessageType.READY, 1, 'P');
+				try {
+					QMaster.put(Msg);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 }
