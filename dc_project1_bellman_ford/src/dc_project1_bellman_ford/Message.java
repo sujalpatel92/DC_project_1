@@ -8,18 +8,18 @@ public class Message {
 
 	//type of messages
 	public enum MessageType {
-		LEADER, READY, NEXT, IN, OUT, EXPLORE, ACK, NACK;
+		LEADER, READY, NEXT, IN, OUT, EXPLORE, ACK, NACK, DONE;
 	}
 	private int ProcessId;
 	private MessageType Mtype;
-	private double Hops;
+	private double Distance;
 	private char FromDirection;
 	private int RootId;
 	
 	public Message(int PID, MessageType Mtype, double Hops, char FrmD){
 		this.ProcessId = PID;
 		this.Mtype = Mtype;
-		this.Hops = Hops;
+		this.Distance = Hops;
 		this.FromDirection = FrmD;
 	}
 	
@@ -40,15 +40,15 @@ public class Message {
 	}
 
 	public double getHops() {
-		return Hops;
+		return Distance;
 	}
 
 	public void setHops(double hops) {
-		this.Hops = hops;
+		this.Distance = hops;
 	}
 	
 	public void setHops(int hops) {
-		this.Hops = hops;
+		this.Distance = hops;
 	}
 
 	public char getFromDirection() {
@@ -68,6 +68,6 @@ public class Message {
 	}
 
 	public String toString() {
-		return "Process ID:" + this.ProcessId + " Message Type:" + this.Mtype + " Hops:" + this.Hops + " From Direction:" + this.FromDirection + " RootID:" + this.RootId;
+		return "Process ID:" + this.ProcessId + " Message Type:" + this.Mtype + " Hops:" + this.Distance + " From Direction:" + this.FromDirection + " RootID:" + this.RootId;
 	}
 }

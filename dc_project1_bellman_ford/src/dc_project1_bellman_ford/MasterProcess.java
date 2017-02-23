@@ -13,16 +13,21 @@ import java.util.concurrent.BlockingQueue;
 public class MasterProcess {
 	
 	private int MasterProcessId;
+	
 	//To signal start of new round to all processes.
 	private BlockingQueue<Message> MasterQ;
 
 	private int NumProcesses;
-	public static Processes RootProcess;
-	int RoundNo = 0;
-	boolean AlgorithmCompleted = false;
 	
+	public static int RootProcess;
+	
+	int RoundNo = 0;
+	
+	boolean AlgorithmCompleted = false;
+	//To send the NEXT message to all the processes.
 	private ArrayList<BlockingQueue<Message>> ProcessRoundQ = new ArrayList<BlockingQueue<Message>>();
-	private ArrayList<BlockingQueue<Message>> MasterProcessQ = new ArrayList<BlockingQueue<Message>>();
+	//Input Q to which other processes can write. 
+	private ArrayList<BlockingQueue<Message>> InterProcessQ = new ArrayList<BlockingQueue<Message>>();
 	
 	public MasterProcess(int MProcessId, int[] ProcessIds){
 		this.MasterProcessId = MProcessId;
@@ -31,14 +36,14 @@ public class MasterProcess {
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
 		
 		Message ReadyMessage;
-		BlockingQueue<Message> ProcessRQ, MasterPrcssQ;
+		BlockingQueue<Message> ProcessRQ, interProcessQueue;
 		for(int i = 0; i < NumProcesses; i++){
 			ReadyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
 			MasterQ.add(ReadyMessage);
 			ProcessRQ = new ArrayBlockingQueue<>(NumProcesses);
-			MasterPrcssQ = new ArrayBlockingQueue<>(NumProcesses);
+			interProcessQueue = new ArrayBlockingQueue<>(NumProcesses);
 			ProcessRoundQ.add(ProcessRQ);
-			MasterProcessQ.add(MasterPrcssQ);
+			InterProcessQ.add(interProcessQueue);
 		}
 	}
 	
@@ -105,8 +110,8 @@ public class MasterProcess {
 	
 	
 	
-	public ArrayList<BlockingQueue<Message>> getMasterProcessQ() {
-		return MasterProcessQ;
+	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
+		return InterProcessQ;
 	}
 
 	public static void main(String[] args){
@@ -122,7 +127,7 @@ public class MasterProcess {
 		}
 		
 		for(int i=0; i<3;i++){
-			process[i].setQIn(mp.getMasterProcessQ().get(i));
+			process[i].setQIn(mp.getInterProcessQ().get(i));
 			process[i].setQRound(mp.getProcessRoundQ().get(i));
 			
 		}
