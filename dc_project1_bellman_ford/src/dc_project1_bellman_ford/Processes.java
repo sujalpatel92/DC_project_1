@@ -3,6 +3,7 @@ package dc_project1_bellman_ford;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.*;
 
 import dc_project1_bellman_ford.Message.MessageType;
@@ -17,8 +18,9 @@ public class Processes implements Runnable {
 	 * QMaster -> write READY message to this Q.
 	 * QRound -> Receive NEXT signal from Master process.
 	 * QIn -> Interprocess Q.
+	 * QDone -> To signal completion of tree building at your level. Work in Progress. Code still doesn't stop properly.
 	*/
-	private BlockingQueue<Message> QMaster, QRound, QIn;
+	private BlockingQueue<Message> QMaster, QRound, QIn, QDone;
 	
 	
 	private ArrayList<Edge> Edges;
@@ -78,6 +80,14 @@ public class Processes implements Runnable {
 		QIn = qIn;
 	}
 	
+	public BlockingQueue<Message> getQDone() {
+		return QDone;
+	}
+
+	public void setQDone(BlockingQueue<Message> qDone) {
+		QDone = qDone;
+	}
+
 	public BlockingQueue<Message> getQMaster() {
 		return QMaster;
 	}
@@ -97,13 +107,29 @@ public class Processes implements Runnable {
 	public int getProcessId() {
 		return ProcessId;
 	}
-
+	
+	public void addEdge(Edge e){
+		this.Edges.add(e);
+	}
+	
+	public void printParentID(){
+		System.out.println(this.ParentID);
+	}
+	
+	public void printChildID(){
+		for(int i=0;i<this.childID.size();i++){
+			System.out.println(childID.get(i));
+		}
+	}
+	
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
+		Initialize();
 		while (true) {
 			Message Msg = null;
 			try {
+				//check for the start of next round
 				Msg = QRound.take();
 				if (Msg.getMtype() == Message.MessageType.NEXT) {
 					RoundNo++;
@@ -112,11 +138,28 @@ public class Processes implements Runnable {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+			//send all the messages outwards at the start. Had to put it up here to solve certain synchronization issues.
+			if(SendList.size() > 0){
+				Iterator iter = SendList.entrySet().iterator();
+				while(iter.hasNext()){
+					Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>)iter.next();
+					Processes toSend = pair.getKey();
+					Message toSendMsg = pair.getValue();
+					synchronized (this) {
+						if(toSendMsg.getMtype() == Message.MessageType.EXPLORE)
+							this.ExploreCount++;
+						toSend.writeToQIn(toSendMsg);
+						System.out.println("Sending Message to:"+toSend.getProcessId()+" and message is"+toSendMsg.toString());
+					}
+					iter.remove();
+				}
+			}
+			//Check for all incoming messages.
 			while(QIn.size() > 0){
 				try {
 					Msg = QIn.take();
 					if(Msg.getMtype() == Message.MessageType.EXPLORE){
-						//Relaxation
+						//Relaxation step for Bellman-Ford Algorithm
 						if(this.DistanceFromRoot > (int)Msg.getHops()){
 							this.DistanceFromRoot = (int) Msg.getHops();
 							this.ParentID = Msg.getProcessId();
@@ -126,14 +169,16 @@ public class Processes implements Runnable {
 							while (Iter.hasNext()) {
 								Edge E = Iter.next();
 								neighbourProcess = E.getNeighbour(this);
-								if(neighbourProcess.getProcessId() == this.ParentID)
+								if(neighbourProcess.getProcessId() == this.ParentID || neighbourProcess.getProcessId() == MasterProcess.RootProcess)
 									continue;
 								Distance = DistanceFromRoot + E.getWeight();
 								Msg = new Message(this.ProcessId, Message.MessageType.EXPLORE, Distance, 'I');
 								SendList.put(neighbourProcess, Msg);
 								this.exploreToSend = true;
+								this.ExploreCompleted = false;
 							}
-							if(!this.exploreToSend){
+							//In case the node has not more outgoing neighbors to send to
+							if(!this.exploreToSend && ExploreCount == 0){
 								this.ExploreCompleted = true;
 								Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
 								Processes ngbhr;
@@ -147,6 +192,7 @@ public class Processes implements Runnable {
 								}
 							}
 						}
+						//NACK for not helpful relaxation
 						else{
 							int senderID = Msg.getProcessId();
 							Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
@@ -161,7 +207,8 @@ public class Processes implements Runnable {
 							}
 						}
 					}
-					if(Msg.getMtype() == Message.MessageType.ACK){
+					//receiving ACK
+					if(Msg.getMtype() == Message.MessageType.ACK && !ExploreCompleted){
 						this.ACKCount++;
 						childID.add(Msg.getProcessId());
 						if((this.ACKCount + this.NACKCount) == this.ExploreCount){
@@ -176,9 +223,14 @@ public class Processes implements Runnable {
 									SendList.put(ngbhr, Msg);
 								}
 							}
+							Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
+							synchronized (this) {
+								QDone.add(Msg);
+							}
 						}
 					}
-					if(Msg.getMtype() == Message.MessageType.NACK){
+					//receiving NACK
+					if(Msg.getMtype() == Message.MessageType.NACK && !ExploreCompleted){
 						this.NACKCount++;
 						if((this.ACKCount + this.NACKCount) == this.ExploreCount){
 							this.ExploreCompleted = true;
@@ -192,6 +244,10 @@ public class Processes implements Runnable {
 									SendList.put(ngbhr, Msg);
 								}
 							}
+							Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
+							synchronized (this) {
+								QDone.add(Msg);
+							}
 						}
 					}
 					
@@ -199,6 +255,11 @@ public class Processes implements Runnable {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+			}
+			//Signal READY for next round
+			Message readyMSG = new Message(this.ProcessId, Message.MessageType.READY, Integer.MIN_VALUE, 'R');
+			synchronized (this) {
+				QMaster.add(readyMSG);
 			}
 		}
 	}
