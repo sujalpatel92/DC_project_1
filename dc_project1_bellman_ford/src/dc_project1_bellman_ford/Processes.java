@@ -40,7 +40,7 @@ public class Processes implements Runnable{
 		Message Msg;
 		int Distance;
 		this.ExploreCount = this.Edges.size() - 1;
-		if(this == MasterProcess.RootProcess){
+		if(this.ProcessId == MasterProcess.RootProcess){
 			Iterator<Edge> Iter = this.Edges.iterator();
 			while(Iter.hasNext()){
 				Edge E = Iter.next();
@@ -51,6 +51,14 @@ public class Processes implements Runnable{
 	}
 
 	
+	public ArrayList<Edge> getEdges() {
+		return Edges;
+	}
+
+	public void setEdges(ArrayList<Edge> edges) {
+		Edges = edges;
+	}
+
 	public void setQMaster(BlockingQueue<Message> qMaster) {
 		QMaster = qMaster;
 	}
