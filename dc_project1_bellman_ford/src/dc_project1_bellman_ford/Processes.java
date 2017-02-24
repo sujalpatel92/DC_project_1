@@ -67,6 +67,13 @@ public class Processes implements Runnable {
 			this.DistanceFromRoot = Integer.MAX_VALUE;
 		}
 	}
+	public ArrayList<Edge> getEdges() {
+		return Edges;
+	}
+
+	public void setEdges(ArrayList<Edge> edges) {
+		Edges = edges;
+	}
 
 	public void setQMaster(BlockingQueue<Message> qMaster) {
 		QMaster = qMaster;

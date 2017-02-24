@@ -11,9 +11,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 public class MasterProcess {
-	
+
 	private int MasterProcessId;
-	
 	//To signal start of new round to all processes.
 	private BlockingQueue<Message> MasterQ, DoneQ;
 
@@ -32,7 +31,7 @@ public class MasterProcess {
 	public MasterProcess(int MProcessId, int[] ProcessIds){
 		this.MasterProcessId = MProcessId;
 		this.NumProcesses = ProcessIds.length;
-		
+
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
 		DoneQ = new ArrayBlockingQueue<>(NumProcesses);
 		
@@ -48,20 +47,20 @@ public class MasterProcess {
 			InterProcessQ.add(interProcessQueue);
 		}
 	}
-	
-	public boolean CheckAllReady(){
-		if(MasterQ.size() < NumProcesses){
+
+	public boolean CheckAllReady() {
+		if (MasterQ.size() < NumProcesses) {
 			return false;
 		}
 		int Count = 0;
 		Message Msg;
-		for(int i = 0; i < NumProcesses; i++){
+		for (int i = 0; i < NumProcesses; i++) {
 			try {
 				Msg = MasterQ.take();
-				if(Msg.getMtype() != Message.MessageType.READY){
+				if (Msg.getMtype() != Message.MessageType.READY) {
 					return false;
 				}
-				if(Msg.getMtype() == Message.MessageType.READY){
+				if (Msg.getMtype() == Message.MessageType.READY) {
 					Count++;
 				}
 			} catch (InterruptedException e) {
@@ -69,13 +68,13 @@ public class MasterProcess {
 				e.printStackTrace();
 			}
 		}
-		if(Count == NumProcesses){
+		if (Count == NumProcesses) {
 			return true;
 		}
 		return false;
 	}
-	
-	public void StartNewRound(){
+
+	public void StartNewRound() {
 		Iterator<BlockingQueue<Message>> Iter = ProcessRoundQ.iterator();
 		BlockingQueue<Message> Q;
 		Message Msg;
@@ -89,7 +88,7 @@ public class MasterProcess {
 			}
 		}
 	}
-	
+
 	public BlockingQueue<Message> getMasterQ() {
 		return MasterQ;
 	}
@@ -101,7 +100,6 @@ public class MasterProcess {
 	public ArrayList<BlockingQueue<Message>> getProcessRoundQ() {
 		return ProcessRoundQ;
 	}
-	
 	public boolean isAlgorithmCompleted(){
 		if(checkAllDone())
 				return true;
@@ -122,100 +120,117 @@ public class MasterProcess {
 			}
 		}
 	}
-	
-	
-	
 	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
 		return InterProcessQ;
 	}
+  
+	public ArrayList<BlockingQueue<Message>> getMasterProcessQ() {
+		return MasterProcessQ;
+	}
 
-	public static void main(String[] args){
+	public static void main(String[] args) {
 		
-		//static initialization for testing currently.
-		int MasterProcessID = 0;
-		int[] ids = {1,2,3,4,5};
-		Edge e;
-		int n = 5;
-		MasterProcess mp = new MasterProcess(MasterProcessID, ids);
-		Processes[] process = new Processes[n];
-		mp.RootProcess = 3;
-		for(int i = 0;i < n;i++){
-			process[i] = new Processes(ids[i]);
-		}
-		
-		for(int i=0; i<n;i++){
-			process[i].setQIn(mp.getInterProcessQ().get(i));
-			process[i].setQRound(mp.getProcessRoundQ().get(i));
-		}
-		
-		e = new Edge(process[0],process[1],5);
-		process[0].addEdge(e);
-		process[1].addEdge(e);
-		
-		e = new Edge(process[0],process[4],9);
-		process[0].addEdge(e);
-		process[4].addEdge(e);
-		
-		e = new Edge(process[0],process[2],3);
-		process[0].addEdge(e);
-		process[2].addEdge(e);
-		
-		e = new Edge(process[0],process[3],4);
-		process[0].addEdge(e);
-		process[3].addEdge(e);
-		
-		e = new Edge(process[1],process[2],6);
-		process[1].addEdge(e);
-		process[2].addEdge(e);
-		
-		e = new Edge(process[1],process[4],1);
-		process[1].addEdge(e);
-		process[4].addEdge(e);
-		
-		e = new Edge(process[2],process[3],7);
-		process[2].addEdge(e);
-		process[3].addEdge(e);
-		
-		e = new Edge(process[2],process[4],2);
-		process[2].addEdge(e);
-		process[4].addEdge(e);
-		
-		e = new Edge(process[3],process[4],8);
-		process[3].addEdge(e);
-		process[4].addEdge(e);
-		
-		
-		Thread[] T = new Thread[n];
-		for(int i=0;i < n;i++){
-			process[i].setQMaster(mp.getMasterQ());
-			process[i].setQDone(mp.getDoneQ());
-			T[i] = new Thread(process[i]);
-			T[i].start();
-		}
-		//mp.StartSampleTest();
-		//since code does not stop automatically, need to forcefully stop it.
-		while(!mp.isAlgorithmCompleted() && mp.RoundNo < 100){
-			if(mp.CheckAllReady()){
-				mp.StartNewRound();
-				mp.RoundNo++;
+		BufferedReader inputReader = null;
+		try {
+			if(args.length>0 && args!=null){
+				inputReader = new BufferedReader(new FileReader(new File(args[0])));
+			}else{
+				inputReader = new BufferedReader(new FileReader(new File("input.txt")));
 			}
-		}
-		for(int i = 0;i<n;i++){
-			T[i].interrupt();
-		}
-		for(int i = 0; i < T.length; i++)
-		{
-			try {
-				T[i].join();
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+			
+			int n = -1, leaderId = -1;
+			String s=inputReader.readLine();
+			ArrayList<String> input = new ArrayList<>();
+			while(s!=null){
+				if(!s.contains("#")  && !s.isEmpty()){
+					input.add(s);
+				}
+				s=inputReader.readLine();
 			}
-		}
-		for(int i=0;i<n;i++){
-			System.out.println("Process "+(i+1)+" parent's and child are:");
-			process[i].printParentID();
-			process[i].printChildID();
+			
+			n = new Integer(input.get(0));
+			
+			int[] ids = new int[n];
+			int[][] edgeWeights=new int[n][n];
+			String[] processIds = input.get(1).split(" ");
+				for (int i = 0; i < n; i++) {
+					ids[i] = new Integer(processIds[i]);
+				}
+			
+				leaderId = new Integer(input.get(2));
+				String[][] neighbours=new String[n][n];
+				for(int i=3;i<n+3;i++){
+					neighbours[i-3]= input.get(i).trim().replace("  "," ").split(" "); 
+				}
+				
+				
+
+			int MasterProcessID = 0;
+			// int[] ids = {1,2,3};
+			MasterProcess mp = new MasterProcess(MasterProcessID, ids);
+			if (n != -1)
+				mp.NumProcesses = n;
+			if (leaderId != -1)
+				mp.RootProcess = leaderId;
+			Processes[] process = new Processes[n];
+			
+			for (int i = 0; i < n; i++) {
+				ArrayList<Edge> neighbourEdges= new ArrayList<Edge>();
+				process[i] = new Processes(ids[i]);
+			}
+
+			for (int i = 0; i < n; i++) {
+				ArrayList<Edge> neighbourEdges= new ArrayList<Edge>();
+				for(int j=0;j<n;j++){
+					if(!neighbours[i][j].equalsIgnoreCase("-1")){
+						Edge e = new Edge(process[i], process[j], Integer.parseInt(neighbours[i][j]));
+						neighbourEdges.add(e);
+					}
+				}
+				process[i].setEdges(neighbourEdges);
+			
+			}
+			
+			for (int i = 0; i < n; i++) {
+				process[i].setQIn(mp.getMasterProcessQ().get(i));
+				process[i].setQRound(mp.getProcessRoundQ().get(i));
+
+			}
+
+			Thread[] T = new Thread[n];
+			for (int i = 0; i < n; i++) {
+				process[i].setQMaster(mp.getMasterQ());
+        process[i].setQDone(mp.getDoneQ());
+				T[i] = new Thread(process[i]);
+				T[i].start();
+			}
+
+			//mp.StartSampleTest();
+      //since code does not stop automatically, need to forcefully stop it.
+		  while(!mp.isAlgorithmCompleted() && mp.RoundNo < 100){
+			  if(mp.CheckAllReady()){
+				  mp.StartNewRound();
+				  mp.RoundNo++;
+			  }
+		  }
+		  for(int i = 0;i<n;i++){
+			  T[i].interrupt();
+		  }
+		  for(int i = 0; i < T.length; i++)
+		  {
+			  try {
+				  T[i].join();
+			  } catch (InterruptedException e1) {
+				  // TODO Auto-generated catch block
+				  e1.printStackTrace();
+			  }
+		  }
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }
