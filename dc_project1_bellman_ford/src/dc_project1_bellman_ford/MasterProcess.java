@@ -13,36 +13,36 @@ import java.util.concurrent.BlockingQueue;
 public class MasterProcess {
 
 	private int MasterProcessId;
-	//To signal start of new round to all processes.
+	// To signal start of new round to all processes.
 	private BlockingQueue<Message> MasterQ, DoneQ;
 
 	private int NumProcesses;
-	
+
 	public static int RootProcess;
-	
+
 	int RoundNo = 0;
-	
+
 	boolean AlgorithmCompleted = false;
-	//To send the NEXT message to all the processes.
+	// To send the NEXT message to all the processes.
 	private ArrayList<BlockingQueue<Message>> ProcessRoundQ = new ArrayList<BlockingQueue<Message>>();
-	//Input Q to which other processes can write. 
+	// Input Q to which other processes can write.
 	private ArrayList<BlockingQueue<Message>> InterProcessQ = new ArrayList<BlockingQueue<Message>>();
-	
-	public MasterProcess(int MProcessId, int[] ProcessIds){
+
+	public MasterProcess(int MProcessId, int[] ProcessIds) {
 		this.MasterProcessId = MProcessId;
 		this.NumProcesses = ProcessIds.length;
 
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
 		DoneQ = new ArrayBlockingQueue<>(NumProcesses);
-		
+
 		Message ReadyMessage;
 		BlockingQueue<Message> ProcessRQ, interProcessQueue;
-		for(int i = 0; i < NumProcesses; i++){
+		for (int i = 0; i < NumProcesses; i++) {
 			ReadyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
 			MasterQ.add(ReadyMessage);
 			ProcessRQ = new ArrayBlockingQueue<>(NumProcesses);
-			//capacity changed here to solve queue full error temporarily.
-			interProcessQueue = new ArrayBlockingQueue<>(NumProcesses*10);
+			// capacity changed here to solve queue full error temporarily.
+			interProcessQueue = new ArrayBlockingQueue<>(NumProcesses * 10);
 			ProcessRoundQ.add(ProcessRQ);
 			InterProcessQ.add(interProcessQueue);
 		}
@@ -80,7 +80,7 @@ public class MasterProcess {
 		Message Msg;
 		MasterQ.clear();
 		synchronized (this) {
-			while(Iter.hasNext()){
+			while (Iter.hasNext()) {
 				Q = Iter.next();
 				Q.clear();
 				Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
@@ -100,70 +100,66 @@ public class MasterProcess {
 	public ArrayList<BlockingQueue<Message>> getProcessRoundQ() {
 		return ProcessRoundQ;
 	}
-	public boolean isAlgorithmCompleted(){
-		if(checkAllDone())
-				return true;
+
+	public boolean isAlgorithmCompleted() {
+		if (checkAllDone())
+			return true;
 		return AlgorithmCompleted;
 	}
-	
-	public boolean checkAllDone(){
-		if(DoneQ.size() == NumProcesses)
+
+	public boolean checkAllDone() {
+		if (DoneQ.size() == NumProcesses)
 			return true;
 		return false;
 	}
-	
-	public void StartSampleTest(){	
-		while(!isAlgorithmCompleted()){
-			if(CheckAllReady()){
+
+	public void StartSampleTest() {
+		while (!isAlgorithmCompleted()) {
+			if (CheckAllReady()) {
 				StartNewRound();
 				RoundNo++;
 			}
 		}
 	}
+
 	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
 		return InterProcessQ;
 	}
-  
-	public ArrayList<BlockingQueue<Message>> getMasterProcessQ() {
-		return MasterProcessQ;
-	}
 
 	public static void main(String[] args) {
-		
+
 		BufferedReader inputReader = null;
 		try {
-			if(args.length>0 && args!=null){
+			if (args.length > 0 && args != null) {
 				inputReader = new BufferedReader(new FileReader(new File(args[0])));
-			}else{
+			} else {
 				inputReader = new BufferedReader(new FileReader(new File("input.txt")));
 			}
-			
+
 			int n = -1, leaderId = -1;
-			String s=inputReader.readLine();
+			String s = inputReader.readLine();
 			ArrayList<String> input = new ArrayList<>();
-			while(s!=null){
-				if(!s.contains("#")  && !s.isEmpty()){
+			while (s != null) {
+				if (!s.contains("#") && !s.isEmpty()) {
 					input.add(s);
 				}
-				s=inputReader.readLine();
+				s = inputReader.readLine();
 			}
-			
+
 			n = new Integer(input.get(0));
-			
+
 			int[] ids = new int[n];
-			int[][] edgeWeights=new int[n][n];
+			int[][] edgeWeights = new int[n][n];
 			String[] processIds = input.get(1).split(" ");
-				for (int i = 0; i < n; i++) {
-					ids[i] = new Integer(processIds[i]);
-				}
-			
-				leaderId = new Integer(input.get(2));
-				String[][] neighbours=new String[n][n];
-				for(int i=3;i<n+3;i++){
-					neighbours[i-3]= input.get(i).trim().replace("  "," ").split(" "); 
-				}
-				
-				
+			for (int i = 0; i < n; i++) {
+				ids[i] = new Integer(processIds[i]);
+			}
+
+			leaderId = new Integer(input.get(2));
+			String[][] neighbours = new String[n][n];
+			for (int i = 3; i < n + 3; i++) {
+				neighbours[i - 3] = input.get(i).trim().replace("  ", " ").split(" ");
+			}
 
 			int MasterProcessID = 0;
 			// int[] ids = {1,2,3};
@@ -173,26 +169,26 @@ public class MasterProcess {
 			if (leaderId != -1)
 				mp.RootProcess = leaderId;
 			Processes[] process = new Processes[n];
-			
+
 			for (int i = 0; i < n; i++) {
-				ArrayList<Edge> neighbourEdges= new ArrayList<Edge>();
+				ArrayList<Edge> neighbourEdges = new ArrayList<Edge>();
 				process[i] = new Processes(ids[i]);
 			}
 
 			for (int i = 0; i < n; i++) {
-				ArrayList<Edge> neighbourEdges= new ArrayList<Edge>();
-				for(int j=0;j<n;j++){
-					if(!neighbours[i][j].equalsIgnoreCase("-1")){
+				ArrayList<Edge> neighbourEdges = new ArrayList<Edge>();
+				for (int j = 0; j < n; j++) {
+					if (!neighbours[i][j].equalsIgnoreCase("-1")) {
 						Edge e = new Edge(process[i], process[j], Integer.parseInt(neighbours[i][j]));
 						neighbourEdges.add(e);
 					}
 				}
 				process[i].setEdges(neighbourEdges);
-			
+
 			}
-			
+
 			for (int i = 0; i < n; i++) {
-				process[i].setQIn(mp.getMasterProcessQ().get(i));
+				process[i].setQIn(mp.getInterProcessQ().get(i));
 				process[i].setQRound(mp.getProcessRoundQ().get(i));
 
 			}
@@ -200,31 +196,31 @@ public class MasterProcess {
 			Thread[] T = new Thread[n];
 			for (int i = 0; i < n; i++) {
 				process[i].setQMaster(mp.getMasterQ());
-        process[i].setQDone(mp.getDoneQ());
+				process[i].setQDone(mp.getDoneQ());
 				T[i] = new Thread(process[i]);
 				T[i].start();
 			}
 
-			//mp.StartSampleTest();
-      //since code does not stop automatically, need to forcefully stop it.
-		  while(!mp.isAlgorithmCompleted() && mp.RoundNo < 100){
-			  if(mp.CheckAllReady()){
-				  mp.StartNewRound();
-				  mp.RoundNo++;
-			  }
-		  }
-		  for(int i = 0;i<n;i++){
-			  T[i].interrupt();
-		  }
-		  for(int i = 0; i < T.length; i++)
-		  {
-			  try {
-				  T[i].join();
-			  } catch (InterruptedException e1) {
-				  // TODO Auto-generated catch block
-				  e1.printStackTrace();
-			  }
-		  }
+			// mp.StartSampleTest();
+			// since code does not stop automatically, need to forcefully stop
+			// it.
+			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 100) {
+				if (mp.CheckAllReady()) {
+					mp.StartNewRound();
+					mp.RoundNo++;
+				}
+			}
+			for (int i = 0; i < n; i++) {
+				T[i].interrupt();
+			}
+			for (int i = 0; i < T.length; i++) {
+				try {
+					T[i].join();
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
