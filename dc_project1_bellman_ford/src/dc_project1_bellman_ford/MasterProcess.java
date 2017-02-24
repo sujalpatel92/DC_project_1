@@ -6,7 +6,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -127,7 +130,7 @@ public class MasterProcess {
 	}
 
 	public static void main(String[] args) {
-
+		HashMap<Integer,ArrayList<Integer>> outputList= new HashMap<Integer,ArrayList<Integer>>();
 		BufferedReader inputReader = null;
 		try {
 			if (args.length > 0 && args != null) {
@@ -225,7 +228,28 @@ public class MasterProcess {
 			for(int i = 0;i<n;i++){
 				System.out.println("Process No. "+i+":");
 				process[i].printParentID();
+				if(outputList.containsKey(process[i].getParentID())){
+					ArrayList<Integer> a = outputList.get(process[i].getParentID());
+					a.add(i);
+					outputList.replace(process[i].getParentID(), a);
+				}else{
+					ArrayList<Integer> a= new ArrayList<>();
+					a.add(i);
+					outputList.put(process[i].getParentID(), a);
+				}
 				process[i].printChildID();
+			}
+			
+
+			for (Map.Entry<Integer, ArrayList<Integer>> entry : outputList.entrySet()) {
+				if(entry.getKey()>=0){
+					System.out.print(entry.getKey());
+				    for(Integer i: entry.getValue()){
+				    	System.out.print( " -> "+ i);
+				    }
+				    System.out.println();
+				}
+			    
 			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block

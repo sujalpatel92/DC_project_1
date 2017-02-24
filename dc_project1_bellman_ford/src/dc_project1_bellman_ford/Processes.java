@@ -25,6 +25,14 @@ public class Processes implements Runnable {
 	private ArrayList<Edge> Edges;
 	private int DistanceFromRoot;
 	private int ExploreCount;
+	public int getParentID() {
+		return ParentID;
+	}
+
+	public void setParentID(int parentID) {
+		ParentID = parentID;
+	}
+
 	private int ACKCount;
 	private int NACKCount;
 	private boolean ExploreCompleted, exploreToSend;
