@@ -138,186 +138,189 @@ public class Processes implements Runnable {
 			try {
 				// check for the start of next round
 				synchronized (this) {
+					if(QRound.remainingCapacity()>0)
 					Msg = QRound.take();
 				}
 				if (Msg.getMtype() == Message.MessageType.NEXT) {
 					RoundNo++;
 					System.out.println("Process:" + ProcessId + " Round:" + RoundNo);
 					this.addReadyMsg = false;
-				}
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			// Check for all incoming messages.
-			while (QIn.size() > 0) {
-				try {
-					Msg = QIn.take();
-					if (Msg.getMtype() == Message.MessageType.EXPLORE) {
-						// Relaxation step for Bellman-Ford Algorithm
-						exploreSenderID.add(Msg.getProcessId());
-						if (this.DistanceFromRoot > (int) Msg.getHops()) {
-							this.DistanceFromRoot = (int) Msg.getHops();
-							this.ParentID = Msg.getProcessId();
-							Iterator<Edge> Iter = this.Edges.iterator();
-							Processes neighbourProcess;
-							int Distance;
-							while (Iter.hasNext()) {
-								Edge E = Iter.next();
-								neighbourProcess = E.getNeighbour(this);
-								if (neighbourProcess.getProcessId() == this.ParentID
-										|| neighbourProcess.getProcessId() == MasterProcess.RootProcess)
-									continue;
-								Distance = DistanceFromRoot + E.getWeight();
-								Msg = new Message(this.ProcessId, Message.MessageType.EXPLORE, Distance, 'I');
-								SendList.put(neighbourProcess, Msg);
-								this.exploreToSend = true;
-								this.ExploreCompleted = false;
-							}
-							// In case the node has not more outgoing neighbors
-							// to send to
-							if (!this.exploreToSend && ExploreCount == 0) {
-								this.ExploreCompleted = true;
-								Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
-								Processes ngbhr;
-								Iterator<Edge> Iter2 = this.Edges.iterator();
-								while (Iter2.hasNext()) {
-									Edge E = Iter2.next();
-									ngbhr = E.getNeighbour(this);
-									if (ngbhr.getProcessId() == ParentID) {
-										SendList.put(ngbhr, Msg);
-										for (int i = 0; i < exploreSenderID.size(); i++) {
-											if (exploreSenderID.get(i) == ParentID) {
-												exploreSenderID.remove(i);
+					while (QIn.size() > 0) {
+						try {
+							Msg = QIn.take();
+							if (Msg.getMtype() == Message.MessageType.EXPLORE) {
+								// Relaxation step for Bellman-Ford Algorithm
+								exploreSenderID.add(Msg.getProcessId());
+								if (this.DistanceFromRoot > (int) Msg.getHops()) {
+									this.DistanceFromRoot = (int) Msg.getHops();
+									this.ParentID = Msg.getProcessId();
+									Iterator<Edge> Iter = this.Edges.iterator();
+									Processes neighbourProcess;
+									int Distance;
+									while (Iter.hasNext()) {
+										Edge E = Iter.next();
+										neighbourProcess = E.getNeighbour(this);
+										if (neighbourProcess.getProcessId() == this.ParentID
+												|| neighbourProcess.getProcessId() == MasterProcess.RootProcess)
+											continue;
+										Distance = DistanceFromRoot + E.getWeight();
+										Msg = new Message(this.ProcessId, Message.MessageType.EXPLORE, Distance, 'I');
+										SendList.put(neighbourProcess, Msg);
+										this.exploreToSend = true;
+										this.ExploreCompleted = false;
+									}
+									// In case the node has not more outgoing neighbors
+									// to send to
+									if (!this.exploreToSend && ExploreCount == 0) {
+										this.ExploreCompleted = true;
+										Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
+										Processes ngbhr;
+										Iterator<Edge> Iter2 = this.Edges.iterator();
+										while (Iter2.hasNext()) {
+											Edge E = Iter2.next();
+											ngbhr = E.getNeighbour(this);
+											if (ngbhr.getProcessId() == ParentID) {
+												SendList.put(ngbhr, Msg);
+												for (int i = 0; i < exploreSenderID.size(); i++) {
+													if (exploreSenderID.get(i) == ParentID) {
+														exploreSenderID.remove(i);
+													}
+												}
+											}
+										}
+									}
+								}
+								// NACK for not helpful relaxation
+								else {
+									int senderID = Msg.getProcessId();
+									Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
+									Processes ngbhr;
+									Iterator<Edge> Iter = this.Edges.iterator();
+									while (Iter.hasNext()) {
+										Edge E = Iter.next();
+										ngbhr = E.getNeighbour(this);
+										if (ngbhr.getProcessId() == senderID) {
+											SendList.put(ngbhr, Msg);
+											for (int i = 0; i < exploreSenderID.size(); i++) {
+												if (exploreSenderID.get(i) == senderID) {
+													exploreSenderID.remove(i);
+												}
 											}
 										}
 									}
 								}
 							}
-						}
-						// NACK for not helpful relaxation
-						else {
-							int senderID = Msg.getProcessId();
-							Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
-							Processes ngbhr;
-							Iterator<Edge> Iter = this.Edges.iterator();
-							while (Iter.hasNext()) {
-								Edge E = Iter.next();
-								ngbhr = E.getNeighbour(this);
-								if (ngbhr.getProcessId() == senderID) {
-									SendList.put(ngbhr, Msg);
-									for (int i = 0; i < exploreSenderID.size(); i++) {
-										if (exploreSenderID.get(i) == senderID) {
-											exploreSenderID.remove(i);
+							// receiving ACK
+							if (Msg.getMtype() == Message.MessageType.ACK && !ExploreCompleted) {
+								this.ACKCount++;
+								childID.add(Msg.getProcessId());
+								if ((this.ACKCount + this.NACKCount) == this.ExploreCount) {
+									this.ExploreCompleted = true;
+									Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
+									Processes ngbhr;
+									Iterator<Edge> Iter = this.Edges.iterator();
+									while (Iter.hasNext()) {
+										Edge E = Iter.next();
+										ngbhr = E.getNeighbour(this);
+										if (ngbhr.getProcessId() == ParentID) {
+											SendList.put(ngbhr, Msg);
 										}
+									}
+									if (exploreSenderID.size() > 0) {
+										for (int id : exploreSenderID) {
+											Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
+											Processes ngbhr2;
+											Iterator<Edge> Iter2 = this.Edges.iterator();
+											while (Iter2.hasNext()) {
+												Edge E2 = Iter2.next();
+												ngbhr2 = E2.getNeighbour(this);
+												if (ngbhr2.getProcessId() == id) {
+													SendList.put(ngbhr2, Msg);
+												}
+											}
+										}
+										exploreSenderID.clear();
+									}
+									Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
+									synchronized (this) {
+										QDone.add(Msg);
 									}
 								}
 							}
-						}
-					}
-					// receiving ACK
-					if (Msg.getMtype() == Message.MessageType.ACK && !ExploreCompleted) {
-						this.ACKCount++;
-						childID.add(Msg.getProcessId());
-						if ((this.ACKCount + this.NACKCount) == this.ExploreCount) {
-							this.ExploreCompleted = true;
-							Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
-							Processes ngbhr;
-							Iterator<Edge> Iter = this.Edges.iterator();
-							while (Iter.hasNext()) {
-								Edge E = Iter.next();
-								ngbhr = E.getNeighbour(this);
-								if (ngbhr.getProcessId() == ParentID) {
-									SendList.put(ngbhr, Msg);
-								}
-							}
-							if (exploreSenderID.size() > 0) {
-								for (int id : exploreSenderID) {
-									Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
-									Processes ngbhr2;
-									Iterator<Edge> Iter2 = this.Edges.iterator();
-									while (Iter2.hasNext()) {
-										Edge E2 = Iter2.next();
-										ngbhr2 = E2.getNeighbour(this);
-										if (ngbhr2.getProcessId() == id) {
-											SendList.put(ngbhr2, Msg);
+							// receiving NACK
+							if (Msg.getMtype() == Message.MessageType.NACK && !ExploreCompleted) {
+								this.NACKCount++;
+								if ((this.ACKCount + this.NACKCount) == this.ExploreCount) {
+									this.ExploreCompleted = true;
+									Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
+									Processes ngbhr;
+									Iterator<Edge> Iter = this.Edges.iterator();
+									while (Iter.hasNext()) {
+										Edge E = Iter.next();
+										ngbhr = E.getNeighbour(this);
+										if (ngbhr.getProcessId() == ParentID) {
+											SendList.put(ngbhr, Msg);
 										}
 									}
-								}
-								exploreSenderID.clear();
-							}
-							Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
-							synchronized (this) {
-								QDone.add(Msg);
-							}
-						}
-					}
-					// receiving NACK
-					if (Msg.getMtype() == Message.MessageType.NACK && !ExploreCompleted) {
-						this.NACKCount++;
-						if ((this.ACKCount + this.NACKCount) == this.ExploreCount) {
-							this.ExploreCompleted = true;
-							Msg = new Message(this.ProcessId, Message.MessageType.ACK, Integer.MAX_VALUE, 'O');
-							Processes ngbhr;
-							Iterator<Edge> Iter = this.Edges.iterator();
-							while (Iter.hasNext()) {
-								Edge E = Iter.next();
-								ngbhr = E.getNeighbour(this);
-								if (ngbhr.getProcessId() == ParentID) {
-									SendList.put(ngbhr, Msg);
-								}
-							}
-							if (exploreSenderID.size() > 0) {
-								for (int id : exploreSenderID) {
-									Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
-									Processes ngbhr2;
-									Iterator<Edge> Iter2 = this.Edges.iterator();
-									while (Iter2.hasNext()) {
-										Edge E = Iter2.next();
-										ngbhr2 = E.getNeighbour(this);
-										if (ngbhr2.getProcessId() == id) {
-											SendList.put(ngbhr2, Msg);
+									if (exploreSenderID.size() > 0) {
+										for (int id : exploreSenderID) {
+											Msg = new Message(this.ProcessId, Message.MessageType.NACK, Integer.MIN_VALUE, 'O');
+											Processes ngbhr2;
+											Iterator<Edge> Iter2 = this.Edges.iterator();
+											while (Iter2.hasNext()) {
+												Edge E = Iter2.next();
+												ngbhr2 = E.getNeighbour(this);
+												if (ngbhr2.getProcessId() == id) {
+													SendList.put(ngbhr2, Msg);
+												}
+											}
 										}
+										exploreSenderID.clear();
+									}
+									Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
+									synchronized (this) {
+										QDone.add(Msg);
 									}
 								}
-								exploreSenderID.clear();
 							}
-							Msg = new Message(this.ProcessId, Message.MessageType.DONE, Integer.MIN_VALUE, 'D');
-							synchronized (this) {
-								QDone.add(Msg);
-							}
-						}
-					}
 
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			// send all the messages outwards at the start. Had to put it up
-			// here to solve certain synchronization issues.
-			if (SendList.size() > 0) {
-				Iterator iter = SendList.entrySet().iterator();
-				while (iter.hasNext()) {
-					Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>) iter.next();
-					Processes toSend = pair.getKey();
-					Message toSendMsg = pair.getValue();
-					if (toSendMsg.getMtype() == Message.MessageType.EXPLORE)
-						this.ExploreCount++;
-					toSend.writeToQIn(toSendMsg);
-					System.out.println("Sending Message to: " + toSend.getProcessId() + " and message is: "
-							+ toSendMsg.toString());
-					iter.remove();
-				}
-			}
-			// Signal READY for next round
-			Message readyMSG = new Message(this.ProcessId, Message.MessageType.READY, Integer.MIN_VALUE, 'R');
-			synchronized (this) {
-				if (!this.addReadyMsg) {
-					QMaster.add(readyMSG);
-					this.addReadyMsg = true;
-				}
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+					// send all the messages outwards at the start. Had to put it up
+					// here to solve certain synchronization issues.
+					if (SendList.size() > 0) {
+						Iterator iter = SendList.entrySet().iterator();
+						while (iter.hasNext()) {
+							Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>) iter.next();
+							Processes toSend = pair.getKey();
+							Message toSendMsg = pair.getValue();
+							if (toSendMsg.getMtype() == Message.MessageType.EXPLORE)
+								this.ExploreCount++;
+							toSend.writeToQIn(toSendMsg);
+							System.out.println("Sending Message to: " + toSend.getProcessId() + " and message is: "
+									+ toSendMsg.toString());
+							iter.remove();
+						}
+					}
+					// Signal READY for next round
+					Message readyMSG = new Message(this.ProcessId, Message.MessageType.READY, Integer.MIN_VALUE, 'R');
+					synchronized (this) {
+						if (!this.addReadyMsg) {
+							QMaster.add(readyMSG);
+							this.addReadyMsg = true;
+						}
 
+					}
+					
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
+			// Check for all incoming messages.
+			
 		}
 	}
 
