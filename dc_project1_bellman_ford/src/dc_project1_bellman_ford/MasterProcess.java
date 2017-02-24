@@ -13,32 +13,38 @@ import java.util.concurrent.BlockingQueue;
 public class MasterProcess {
 
 	private int MasterProcessId;
-	// To signal start of new round to all processes.
-	private BlockingQueue<Message> MasterQ;
+	//To signal start of new round to all processes.
+	private BlockingQueue<Message> MasterQ, DoneQ;
 
 	private int NumProcesses;
+	
 	public static int RootProcess;
+	
 	int RoundNo = 0;
+	
 	boolean AlgorithmCompleted = false;
-
+	//To send the NEXT message to all the processes.
 	private ArrayList<BlockingQueue<Message>> ProcessRoundQ = new ArrayList<BlockingQueue<Message>>();
-	private ArrayList<BlockingQueue<Message>> MasterProcessQ = new ArrayList<BlockingQueue<Message>>();
-
-	public MasterProcess(int MProcessId, int[] ProcessIds) {
+	//Input Q to which other processes can write. 
+	private ArrayList<BlockingQueue<Message>> InterProcessQ = new ArrayList<BlockingQueue<Message>>();
+	
+	public MasterProcess(int MProcessId, int[] ProcessIds){
 		this.MasterProcessId = MProcessId;
 		this.NumProcesses = ProcessIds.length;
 
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
-
+		DoneQ = new ArrayBlockingQueue<>(NumProcesses);
+		
 		Message ReadyMessage;
-		BlockingQueue<Message> ProcessRQ, MasterPrcssQ;
-		for (int i = 0; i < NumProcesses; i++) {
+		BlockingQueue<Message> ProcessRQ, interProcessQueue;
+		for(int i = 0; i < NumProcesses; i++){
 			ReadyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
 			MasterQ.add(ReadyMessage);
 			ProcessRQ = new ArrayBlockingQueue<>(NumProcesses);
-			MasterPrcssQ = new ArrayBlockingQueue<>(NumProcesses);
+			//capacity changed here to solve queue full error temporarily.
+			interProcessQueue = new ArrayBlockingQueue<>(NumProcesses*10);
 			ProcessRoundQ.add(ProcessRQ);
-			MasterProcessQ.add(MasterPrcssQ);
+			InterProcessQ.add(interProcessQueue);
 		}
 	}
 
@@ -72,11 +78,14 @@ public class MasterProcess {
 		Iterator<BlockingQueue<Message>> Iter = ProcessRoundQ.iterator();
 		BlockingQueue<Message> Q;
 		Message Msg;
-
-		while (Iter.hasNext()) {
-			Q = Iter.next();
-			Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
-			Q.add(Msg);
+		MasterQ.clear();
+		synchronized (this) {
+			while(Iter.hasNext()){
+				Q = Iter.next();
+				Q.clear();
+				Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
+				Q.add(Msg);
+			}
 		}
 	}
 
@@ -84,25 +93,37 @@ public class MasterProcess {
 		return MasterQ;
 	}
 
+	public BlockingQueue<Message> getDoneQ() {
+		return DoneQ;
+	}
+
 	public ArrayList<BlockingQueue<Message>> getProcessRoundQ() {
 		return ProcessRoundQ;
 	}
-
-	public boolean isAlgorithmCompleted() {
-		if (RoundNo == 25)
-			return true;
+	public boolean isAlgorithmCompleted(){
+		if(checkAllDone())
+				return true;
 		return AlgorithmCompleted;
 	}
-
-	public void StartSampleTest() {
-		while (!isAlgorithmCompleted()) {
-			if (CheckAllReady()) {
+	
+	public boolean checkAllDone(){
+		if(DoneQ.size() == NumProcesses)
+			return true;
+		return false;
+	}
+	
+	public void StartSampleTest(){	
+		while(!isAlgorithmCompleted()){
+			if(CheckAllReady()){
 				StartNewRound();
 				RoundNo++;
 			}
 		}
 	}
-
+	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
+		return InterProcessQ;
+	}
+  
 	public ArrayList<BlockingQueue<Message>> getMasterProcessQ() {
 		return MasterProcessQ;
 	}
@@ -179,11 +200,31 @@ public class MasterProcess {
 			Thread[] T = new Thread[n];
 			for (int i = 0; i < n; i++) {
 				process[i].setQMaster(mp.getMasterQ());
+        process[i].setQDone(mp.getDoneQ());
 				T[i] = new Thread(process[i]);
 				T[i].start();
 			}
 
-			mp.StartSampleTest();
+			//mp.StartSampleTest();
+      //since code does not stop automatically, need to forcefully stop it.
+		  while(!mp.isAlgorithmCompleted() && mp.RoundNo < 100){
+			  if(mp.CheckAllReady()){
+				  mp.StartNewRound();
+				  mp.RoundNo++;
+			  }
+		  }
+		  for(int i = 0;i<n;i++){
+			  T[i].interrupt();
+		  }
+		  for(int i = 0; i < T.length; i++)
+		  {
+			  try {
+				  T[i].join();
+			  } catch (InterruptedException e1) {
+				  // TODO Auto-generated catch block
+				  e1.printStackTrace();
+			  }
+		  }
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
