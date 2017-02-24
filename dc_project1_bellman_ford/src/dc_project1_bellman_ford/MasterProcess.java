@@ -211,7 +211,8 @@ public class MasterProcess {
 				}
 			}
 			for (int i = 0; i < n; i++) {
-				T[i].interrupt();
+				//T[i].interrupt();
+				T[i].stop();
 			}
 			for (int i = 0; i < T.length; i++) {
 				try {
@@ -220,6 +221,11 @@ public class MasterProcess {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
+			}
+			for(int i = 0;i<n;i++){
+				System.out.println("Process No. "+i+":");
+				process[i].printParentID();
+				process[i].printChildID();
 			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
