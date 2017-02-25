@@ -12,8 +12,6 @@ public class Processes implements Runnable {
 
 	// process id
 	private int ProcessId;
-	// Root of the tree
-	private Processes Root;
 	/*
 	 * QMaster -> write READY message to this Q. 
 	 * QRound -> Receive NEXT signal
@@ -42,7 +40,8 @@ public class Processes implements Runnable {
 	private int ParentID;
 	int RoundNo = 0;
 	private boolean addReadyMsg = false;
-
+	private boolean debugStatements = false;
+	
 	public Processes(int processId) {
 		this.ProcessId = processId;
 		Edges = new ArrayList<Edge>();
@@ -51,6 +50,7 @@ public class Processes implements Runnable {
 		this.ACKCount = 0;
 		this.NACKCount = 0;
 		this.doneCount = 0;
+		this.debugStatements = true;
 	}
 
 	public int getDistanceFromRoot() {
@@ -68,7 +68,7 @@ public class Processes implements Runnable {
 		this.exploreToSend = false;
 		this.ParentID = Integer.MIN_VALUE;
 		this.firstRound = true;
-		if (this.ProcessId == MasterProcess.RootProcess) {
+		if (this.ProcessId == MasterProcess.rootProcessID) {
 			this.DistanceFromRoot = 0;
 			this.isRoot = true;
 		} else {
@@ -168,9 +168,11 @@ public class Processes implements Runnable {
 					Msg = QRound.take();
 				if (Msg.getMtype() == Message.MessageType.NEXT) {
 					RoundNo++;
-					String printStr = "Process: " + ProcessId + " Round: " + RoundNo + " EXPLORE: " + this.ExploreCount
-							+ " ACK: " + this.ACKCount + " NACK: " + this.NACKCount + " DONE: " + this.doneCount;
-					System.out.println(printStr);
+					if(this.debugStatements){
+						String printStr = "Process: " + ProcessId + " Round: " + RoundNo + " EXPLORE: " + this.ExploreCount
+								+ " ACK: " + this.ACKCount + " NACK: " + this.NACKCount + " DONE: " + this.doneCount;
+						System.out.println(printStr);	
+					}
 					this.addReadyMsg = false;
 					if (this.isRoot && this.firstRound) {
 						Processes neighbourProcess;
@@ -201,7 +203,7 @@ public class Processes implements Runnable {
 										Edge E = Iter.next();
 										neighbourProcess = E.getNeighbour(this);
 										if (neighbourProcess.getProcessId() == this.ParentID
-												|| neighbourProcess.getProcessId() == MasterProcess.RootProcess)
+												|| neighbourProcess.getProcessId() == MasterProcess.rootProcessID)
 											continue;
 										Distance = DistanceFromRoot + E.getWeight();
 										Msg = new Message(this.ProcessId, Message.MessageType.EXPLORE, Distance, 'I');
@@ -409,7 +411,8 @@ public class Processes implements Runnable {
 							if (toSendMsg.getMtype() == Message.MessageType.EXPLORE)
 								this.ExploreCount++;
 							toSend.writeToQIn(toSendMsg);
-							System.out.println("********** To: " + toSend.getProcessId() + " " + toSendMsg.debug());
+							if(this.debugStatements)
+								System.out.println("********** To: " + toSend.getProcessId() + " " + toSendMsg.debug());
 							iter.remove();
 						}
 					}
