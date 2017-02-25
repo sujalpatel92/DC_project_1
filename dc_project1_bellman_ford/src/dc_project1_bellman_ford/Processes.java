@@ -15,12 +15,16 @@ public class Processes implements Runnable {
 	// Root of the tree
 	private Processes Root;
 	/*
-	 * QMaster -> write READY message to this Q. QRound -> Receive NEXT signal
-	 * from Master process. QIn -> Interprocess Q. QDone -> To signal completion
+	 * QMaster -> write READY message to this Q. 
+	 * QRound -> Receive NEXT signal
+	 * from Master process. 
+	 * QIn -> Interprocess Q. 
+	 * QDone -> To signal completion
 	 * of tree building at your level. Work in Progress. Code still doesn't stop
 	 * properly.
+	 * QReadyToSend -> Write in this Queue Ready to let Master know you want to send the messages to link now.
 	 */
-	private BlockingQueue<Message> QMaster, QRound, QIn, QDone;
+	private BlockingQueue<Message> QMaster, QRound, QIn, QDone, QReadyToSend;
 
 	private ArrayList<Edge> Edges;
 	private int DistanceFromRoot;
@@ -121,6 +125,14 @@ public class Processes implements Runnable {
 		ParentID = parentID;
 	}
 
+	public BlockingQueue<Message> getQReadyToSend() {
+		return QReadyToSend;
+	}
+
+	public void setQReadyToSend(BlockingQueue<Message> qReadyToSend) {
+		QReadyToSend = qReadyToSend;
+	}
+
 	public void addEdge(Edge e) {
 		this.Edges.add(e);
 	}
@@ -143,8 +155,7 @@ public class Processes implements Runnable {
 			Message Msg = null;
 			try {
 				// check for the start of next round
-				while (!(QRound.size() > 0))
-					;
+				while (!(QRound.size() > 0));
 				if (QRound.peek() != null)
 					Msg = QRound.take();
 				if (Msg.getMtype() == Message.MessageType.NEXT) {
@@ -153,22 +164,6 @@ public class Processes implements Runnable {
 							+ " ACK: " + this.ACKCount + " NACK: " + this.NACKCount + " DONE: " + this.doneCount;
 					System.out.println(printStr);
 					this.addReadyMsg = false;
-					// send all the messages outwards at the start. Had to put
-					// it up
-					// here to solve certain synchronization issues.
-					if (SendList.size() > 0) {
-						Iterator iter = SendList.entrySet().iterator();
-						while (iter.hasNext()) {
-							Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>) iter.next();
-							Processes toSend = pair.getKey();
-							Message toSendMsg = pair.getValue();
-							if (toSendMsg.getMtype() == Message.MessageType.EXPLORE)
-								this.ExploreCount++;
-							toSend.writeToQIn(toSendMsg);
-							System.out.println("********** To: " + toSend.getProcessId() + " " + toSendMsg.debug());
-							iter.remove();
-						}
-					}
 					if (this.isRoot && this.firstRound) {
 						Processes neighbourProcess;
 						Iterator<Edge> Iter = this.Edges.iterator();
@@ -388,7 +383,28 @@ public class Processes implements Runnable {
 							e.printStackTrace();
 						}
 					}
-
+					//Signal Ready to send and wait.
+					Message readyToSendMsg = new Message(this.ProcessId, Message.MessageType.READY, Integer.MIN_VALUE, 'R');
+					synchronized (this) {
+						QReadyToSend.add(readyToSendMsg);
+					}
+					while(QReadyToSend.size() != 0);
+					// send all the messages outwards at the start. Had to put
+					// it up
+					// here to solve certain synchronization issues.
+					if (SendList.size() > 0) {
+						Iterator iter = SendList.entrySet().iterator();
+						while (iter.hasNext()) {
+							Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>) iter.next();
+							Processes toSend = pair.getKey();
+							Message toSendMsg = pair.getValue();
+							if (toSendMsg.getMtype() == Message.MessageType.EXPLORE)
+								this.ExploreCount++;
+							toSend.writeToQIn(toSendMsg);
+							System.out.println("********** To: " + toSend.getProcessId() + " " + toSendMsg.debug());
+							iter.remove();
+						}
+					}
 					// Signal READY for next round
 					Message readyMSG = new Message(this.ProcessId, Message.MessageType.READY, Integer.MIN_VALUE, 'R');
 					synchronized (this) {

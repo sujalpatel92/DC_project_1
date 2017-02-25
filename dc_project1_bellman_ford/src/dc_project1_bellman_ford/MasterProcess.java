@@ -18,6 +18,8 @@ public class MasterProcess {
 	private int MasterProcessId;
 	// To signal start of new round to all processes.
 	private BlockingQueue<Message> MasterQ, DoneQ;
+	// Experimental solution to synchronize message sending for all threads.
+	private BlockingQueue<Message> readyToSendQ;
 
 	private int NumProcesses;
 	private Message msg;
@@ -38,6 +40,7 @@ public class MasterProcess {
 
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
 		DoneQ = new ArrayBlockingQueue<>(1);
+		readyToSendQ = new ArrayBlockingQueue<>(NumProcesses);
 
 		Message ReadyMessage;
 		BlockingQueue<Message> ProcessRQ, interProcessQueue;
@@ -100,6 +103,10 @@ public class MasterProcess {
 	public BlockingQueue<Message> getDoneQ() {
 		return DoneQ;
 	}
+	
+	public BlockingQueue<Message> getReadyToSendQ() {
+		return readyToSendQ;
+	}
 
 	public ArrayList<BlockingQueue<Message>> getProcessRoundQ() {
 		return ProcessRoundQ;
@@ -126,6 +133,18 @@ public class MasterProcess {
 			}
 		}
 		return false;
+	}
+	
+	public boolean checkAllReadyToSend() {
+		if(readyToSendQ.size() == NumProcesses)
+			return true;
+		return false;
+	}
+	
+	public void signalSend(){
+		synchronized(this){
+			readyToSendQ.clear();
+		}
 	}
 
 	public void StartSampleTest() {
@@ -212,6 +231,7 @@ public class MasterProcess {
 			for (int i = 0; i < n; i++) {
 				process[i].setQMaster(mp.getMasterQ());
 				process[i].setQDone(mp.getDoneQ());
+				process[i].setQReadyToSend(mp.getReadyToSendQ());
 				T[i] = new Thread(process[i]);
 				T[i].start();
 			}
@@ -223,6 +243,8 @@ public class MasterProcess {
 				if (mp.CheckAllReady()) {
 					mp.StartNewRound();
 					mp.RoundNo++;
+					while(!mp.checkAllReadyToSend());
+					mp.signalSend();
 				}
 			}
 			for (int i = 0; i < n; i++) {
