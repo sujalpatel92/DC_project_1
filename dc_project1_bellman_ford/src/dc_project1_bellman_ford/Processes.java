@@ -4,22 +4,27 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.Map.Entry;
+import java.util.concurrent.BlockingQueue;
 
-import dc_project1_bellman_ford.Message.MessageType;
 
+/**
+ * Team Members:
+ * Sujal Patel (ssp150930)
+ * Harshil Shah (hxs155030)
+ * Sagar Mehta (sam150930)
+ * 
+ * This is the individual process class which runs bellman ford algorithm. 
+ */
 public class Processes implements Runnable {
 
 	// process id
 	private int ProcessId;
 	/*
 	 * QMaster -> write READY message to this Q. 
-	 * QRound -> Receive NEXT signal
-	 * from Master process. 
+	 * QRound -> Receive NEXT signal from Master process. 
 	 * QIn -> Interprocess Q. 
-	 * QDone -> To signal completion
-	 * of tree building at your level. Work in Progress. Code still doesn't stop
-	 * properly.
+	 * QDone -> To signal completion of tree building at your level. Work in Progress. Code still doesn't stop properly.
 	 * QReadyToSend -> Write in this Queue Ready to let Master know you want to send the messages to link now.
 	 */
 	private BlockingQueue<Message> QMaster, QRound, QIn, QDone, QReadyToSend;
@@ -50,7 +55,7 @@ public class Processes implements Runnable {
 		this.ACKCount = 0;
 		this.NACKCount = 0;
 		this.doneCount = 0;
-		this.debugStatements = true;
+		this.debugStatements = false;
 	}
 
 	public int getDistanceFromRoot() {
@@ -62,8 +67,7 @@ public class Processes implements Runnable {
 	}
 
 	public void Initialize() {
-		Message Msg;
-		int Distance;
+		
 		this.ExploreCount = 0;
 		this.exploreToSend = false;
 		this.ParentID = Integer.MIN_VALUE;
@@ -403,7 +407,7 @@ public class Processes implements Runnable {
 					// it up
 					// here to solve certain synchronization issues.
 					if (SendList.size() > 0) {
-						Iterator iter = SendList.entrySet().iterator();
+						Iterator<Entry<Processes, Message>> iter = SendList.entrySet().iterator();
 						while (iter.hasNext()) {
 							Map.Entry<Processes, Message> pair = (Map.Entry<Processes, Message>) iter.next();
 							Processes toSend = pair.getKey();

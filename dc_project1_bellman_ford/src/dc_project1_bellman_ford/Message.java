@@ -1,7 +1,12 @@
 package dc_project1_bellman_ford;
 
 /*
- * This represents a message which has processId,message type, count of hops, and direction
+ * Team Members:
+ * Sujal Patel (ssp150930)
+ * Harshil Shah (hxs155030)
+ * Sagar Mehta (sam150930)
+ * 
+ * This represents a message which has processId, message type, distance from the root, and direction
  * from which it is coming.
  */
 public class Message {

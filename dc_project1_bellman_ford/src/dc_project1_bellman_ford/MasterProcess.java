@@ -9,15 +9,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 /*
  * Team Members:
  * Sujal Patel (ssp150930)
- * Harshil Shah
- * Sagar Mehta
+ * Harshil Shah (hxs155030)
+ * Sagar Mehta (sam150930)
+ * 
+ * This class is the main class. It acts as master thread that synchronizes rounds.
  */
 
 public class MasterProcess {
@@ -171,6 +172,7 @@ public class MasterProcess {
 		}
 	}
 	
+	@SuppressWarnings("deprecation")
 	public static void main(String[] args) {
 		HashMap<Integer,ArrayList<Integer>> outputList= new HashMap<Integer,ArrayList<Integer>>();
 		BufferedReader inputReader = null;
@@ -181,6 +183,7 @@ public class MasterProcess {
 				inputReader = new BufferedReader(new FileReader(new File("input.txt")));
 			}
 
+			// Parse the input file. Order of expected input is number of nodes, node ids, leader id, edge weight matrix.
 			int n = -1, leaderId = -1;
 			String s = inputReader.readLine();
 			ArrayList<String> input = new ArrayList<>();
@@ -191,32 +194,34 @@ public class MasterProcess {
 				s = inputReader.readLine();
 			}
 
+			//Saving number of nodes/processes
 			n = new Integer(input.get(0));
-
-			int[] ids = new int[n];
-			int[][] edgeWeights = new int[n][n];
+			
+			//Saving Node/Process Id
+			int[] ids = new int[n];			
 			String[] processIds = input.get(1).split(" ");
 			for (int i = 0; i < n; i++) {
 				ids[i] = new Integer(processIds[i]);
 			}
-
+			
+			//Saving leader Id
 			leaderId = new Integer(input.get(2));
+			
+			//Saving Edge weights
 			String[][] neighbours = new String[n][n];
 			for (int i = 3; i < n + 3; i++) {
 				neighbours[i - 3] = input.get(i).trim().replace("  ", " ").split(" ");
 			}
 
 			int MasterProcessID = 0;
-			// int[] ids = {1,2,3};
 			MasterProcess mp = new MasterProcess(MasterProcessID, ids);
 			if (n != -1)
 				mp.numProcesses = n;
 			if (leaderId != -1)
-				mp.rootProcessID = leaderId;
+				MasterProcess.rootProcessID = leaderId;
 			Processes[] process = new Processes[n];
 
 			for (int i = 0; i < n; i++) {
-				ArrayList<Edge> neighbourEdges = new ArrayList<Edge>();
 				process[i] = new Processes(ids[i]);
 			}
 
@@ -247,7 +252,6 @@ public class MasterProcess {
 				T[i].start();
 			}
 
-			// mp.StartSampleTest();
 			// since code does not stop automatically, need to forcefully stop
 			// it.
 			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 15) {
@@ -259,7 +263,6 @@ public class MasterProcess {
 				}
 			}
 			for (int i = 0; i < n; i++) {
-				//T[i].interrupt();
 				T[i].stop();
 			}
 			for (int i = 0; i < T.length; i++) {
@@ -270,8 +273,10 @@ public class MasterProcess {
 					e1.printStackTrace();
 				}
 			}
+			
+			//Printing nodes with parent and ditance from root.
 			for(int i = 0;i<n;i++){
-				if(i!=RootProcess)
+				if(i!=rootProcessID)
 				System.out.println("Process No: "+i+" Parent: " +process[i].getParentID()+ " distance: " + process[i].getDistanceFromRoot());
 	
 				if(outputList.containsKey(process[i].getParentID())){
@@ -283,9 +288,9 @@ public class MasterProcess {
 					a.add(i);
 					outputList.put(process[i].getParentID(), a);
 				}
-				//process[i].printChildID();
 			}
 			
+			//Printing adjacency list
 			System.out.println("******************* Adjacency List *******************");
 			for (Map.Entry<Integer, ArrayList<Integer>> entry : outputList.entrySet()) {
 				if(entry.getKey()>=0){

@@ -1,0 +1,15 @@
+************ Algorithm Completed *****************
+Process No: 1 Parent: 4 distance: 1
+Process No: 2 Parent: 0 distance: 0
+Process No: 3 Parent: 2 distance: 1
+Process No: 4 Parent: 0 distance: 1
+Process No: 5 Parent: 4 distance: 1
+Process No: 6 Parent: 7 distance: 3
+Process No: 7 Parent: 0 distance: 2
+Process No: 8 Parent: 2 distance: 2
+Process No: 9 Parent: 2 distance: 1
+******************* Adjacency List *******************
+0 -> 2 -> 4 -> 7
+2 -> 3 -> 8 -> 9
+4 -> 1 -> 5
+7 -> 6

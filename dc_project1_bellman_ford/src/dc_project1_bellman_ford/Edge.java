@@ -1,5 +1,14 @@
 package dc_project1_bellman_ford;
 
+
+/**
+ * Team Members:
+ * Sujal Patel (ssp150930)
+ * Harshil Shah (hxs155030)
+ * Sagar Mehta (sam150930)
+ *
+ * This class is the object for edges. 
+ */
 public class Edge {
 
 	private Processes P1,P2;
