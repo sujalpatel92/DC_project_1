@@ -53,6 +53,14 @@ public class Processes implements Runnable {
 		this.doneCount = 0;
 	}
 
+	public int getDistanceFromRoot() {
+		return DistanceFromRoot;
+	}
+
+	public void setDistanceFromRoot(int distanceFromRoot) {
+		DistanceFromRoot = distanceFromRoot;
+	}
+
 	public void Initialize() {
 		Message Msg;
 		int Distance;

@@ -260,8 +260,9 @@ public class MasterProcess {
 				}
 			}
 			for(int i = 0;i<n;i++){
-				System.out.println("Process No. "+i+":");
-				process[i].printParentID();
+				if(i!=RootProcess)
+				System.out.println("Process No: "+i+" Parent: " +process[i].getParentID()+ " distance: " + process[i].getDistanceFromRoot());
+	
 				if(outputList.containsKey(process[i].getParentID())){
 					ArrayList<Integer> a = outputList.get(process[i].getParentID());
 					a.add(i);
@@ -274,7 +275,7 @@ public class MasterProcess {
 				//process[i].printChildID();
 			}
 			
-
+			System.out.println("******************* Adjacency List *******************");
 			for (Map.Entry<Integer, ArrayList<Integer>> entry : outputList.entrySet()) {
 				if(entry.getKey()>=0){
 					System.out.print(entry.getKey());
