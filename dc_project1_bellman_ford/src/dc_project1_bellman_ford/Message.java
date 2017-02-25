@@ -70,4 +70,8 @@ public class Message {
 	public String toString() {
 		return "Process ID:" + this.ProcessId + " Message Type:" + this.Mtype + " Hops:" + this.Distance + " From Direction:" + this.FromDirection + " RootID:" + this.RootId;
 	}
+	
+	public String debug(){
+		return "From: " + this.ProcessId + " What: " + this.Mtype;
+	}
 }

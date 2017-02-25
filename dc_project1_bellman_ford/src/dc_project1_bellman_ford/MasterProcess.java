@@ -20,7 +20,8 @@ public class MasterProcess {
 	private BlockingQueue<Message> MasterQ, DoneQ;
 
 	private int NumProcesses;
-
+	private Message msg;
+	
 	public static int RootProcess;
 
 	int RoundNo = 0;
@@ -36,7 +37,7 @@ public class MasterProcess {
 		this.NumProcesses = ProcessIds.length;
 
 		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
-		DoneQ = new ArrayBlockingQueue<>(NumProcesses);
+		DoneQ = new ArrayBlockingQueue<>(1);
 
 		Message ReadyMessage;
 		BlockingQueue<Message> ProcessRQ, interProcessQueue;
@@ -106,13 +107,24 @@ public class MasterProcess {
 
 	public boolean isAlgorithmCompleted() {
 		if (checkAllDone())
+		{
+			System.out.println("************ Algorithm Completed *****************");
 			return true;
+		}
 		return AlgorithmCompleted;
 	}
 
 	public boolean checkAllDone() {
-		if (DoneQ.size() == NumProcesses)
-			return true;
+		if (DoneQ.size() > 0){
+			try {
+				this.msg = DoneQ.take();
+				if(msg.getProcessId() == RootProcess)
+					return true;
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 		return false;
 	}
 
@@ -207,7 +219,7 @@ public class MasterProcess {
 			// mp.StartSampleTest();
 			// since code does not stop automatically, need to forcefully stop
 			// it.
-			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 100) {
+			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 15) {
 				if (mp.CheckAllReady()) {
 					mp.StartNewRound();
 					mp.RoundNo++;
@@ -237,7 +249,7 @@ public class MasterProcess {
 					a.add(i);
 					outputList.put(process[i].getParentID(), a);
 				}
-				process[i].printChildID();
+				//process[i].printChildID();
 			}
 			
 
