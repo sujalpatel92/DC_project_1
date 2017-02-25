@@ -13,57 +13,67 @@ import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+/*
+ * Team Members:
+ * Sujal Patel (ssp150930)
+ * Harshil Shah
+ * Sagar Mehta
+ */
+
 public class MasterProcess {
 
+	//Need to check the usability of this variable.
 	private int MasterProcessId;
-	// To signal start of new round to all processes.
-	private BlockingQueue<Message> MasterQ, DoneQ;
-	// Experimental solution to synchronize message sending for all threads.
+	//masterQ -> The Q in which processes signal master they are ready for next round.
+	//doneQ -> The Q with 1 capacity where in Root process with write Done message once converge cast is complete on Root.
+	private BlockingQueue<Message> masterQ, doneQ;
+	//readyToSendQ -> The Q to synchronize the sending of messages between processes so all the processes are at same level of execution of round.
 	private BlockingQueue<Message> readyToSendQ;
-
-	private int NumProcesses;
-	private Message msg;
+	//number of processes.
+	private int numProcesses;
+	//The ID of the root process, so the processes can be initialized accordingly.
+	public static int rootProcessID;
 	
-	public static int RootProcess;
-
+	//for debugging purposes.
 	int RoundNo = 0;
-
+	//To break off the while loop emulating the continuous run of system.
 	boolean AlgorithmCompleted = false;
 	// To send the NEXT message to all the processes.
 	private ArrayList<BlockingQueue<Message>> ProcessRoundQ = new ArrayList<BlockingQueue<Message>>();
-	// Input Q to which other processes can write.
+	// Input Q of processes to which other processes can write.
 	private ArrayList<BlockingQueue<Message>> InterProcessQ = new ArrayList<BlockingQueue<Message>>();
-
+	//Constructor
 	public MasterProcess(int MProcessId, int[] ProcessIds) {
 		this.MasterProcessId = MProcessId;
-		this.NumProcesses = ProcessIds.length;
+		this.numProcesses = ProcessIds.length;
 
-		MasterQ = new ArrayBlockingQueue<>(NumProcesses);
-		DoneQ = new ArrayBlockingQueue<>(1);
-		readyToSendQ = new ArrayBlockingQueue<>(NumProcesses);
+		masterQ = new ArrayBlockingQueue<>(numProcesses);
+		doneQ = new ArrayBlockingQueue<>(5);
+		readyToSendQ = new ArrayBlockingQueue<>(numProcesses);
 
 		Message ReadyMessage;
 		BlockingQueue<Message> ProcessRQ, interProcessQueue;
-		for (int i = 0; i < NumProcesses; i++) {
+		for (int i = 0; i < numProcesses; i++) {
 			ReadyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
-			MasterQ.add(ReadyMessage);
-			ProcessRQ = new ArrayBlockingQueue<>(NumProcesses);
-			// capacity changed here to solve queue full error temporarily.
-			interProcessQueue = new ArrayBlockingQueue<>(NumProcesses * 10);
+			masterQ.add(ReadyMessage);
+			// Will only hold one NEXT message from master thread, but extra capacity of unseen contingencies.
+			ProcessRQ = new ArrayBlockingQueue<>(5);
+			// Expecting there will be only one message per process to the each process. Extra capacity to avoid Queue full error.
+			interProcessQueue = new ArrayBlockingQueue<>(numProcesses*2);
 			ProcessRoundQ.add(ProcessRQ);
 			InterProcessQ.add(interProcessQueue);
 		}
 	}
 
-	public boolean CheckAllReady() {
-		if (MasterQ.size() < NumProcesses) {
+	public boolean checkAllProcessesReady() {
+		if (masterQ.size() < numProcesses) {
 			return false;
 		}
 		int Count = 0;
 		Message Msg;
-		for (int i = 0; i < NumProcesses; i++) {
+		for (int i = 0; i < numProcesses; i++) {
 			try {
-				Msg = MasterQ.take();
+				Msg = masterQ.take();
 				if (Msg.getMtype() != Message.MessageType.READY) {
 					return false;
 				}
@@ -75,33 +85,34 @@ public class MasterProcess {
 				e.printStackTrace();
 			}
 		}
-		if (Count == NumProcesses) {
+		if (Count == numProcesses) {
 			return true;
 		}
 		return false;
 	}
-
-	public void StartNewRound() {
-		Iterator<BlockingQueue<Message>> Iter = ProcessRoundQ.iterator();
-		BlockingQueue<Message> Q;
-		Message Msg;
-		MasterQ.clear();
+	
+	public void startNewRound() {
+		Iterator<BlockingQueue<Message>> iter = ProcessRoundQ.iterator();
+		BlockingQueue<Message> q;
+		Message msg;
+		masterQ.clear();
+		//Write the next message to appropriate queue of processes.
 		synchronized (this) {
-			while (Iter.hasNext()) {
-				Q = Iter.next();
-				Q.clear();
-				Msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
-				Q.add(Msg);
+			while (iter.hasNext()) {
+				q = iter.next();
+				q.clear();
+				msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
+				q.add(msg);
 			}
 		}
 	}
 
 	public BlockingQueue<Message> getMasterQ() {
-		return MasterQ;
+		return masterQ;
 	}
 
 	public BlockingQueue<Message> getDoneQ() {
-		return DoneQ;
+		return doneQ;
 	}
 	
 	public BlockingQueue<Message> getReadyToSendQ() {
@@ -112,20 +123,24 @@ public class MasterProcess {
 		return ProcessRoundQ;
 	}
 
+	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
+		return InterProcessQ;
+	}
+
 	public boolean isAlgorithmCompleted() {
-		if (checkAllDone())
+		if (checkRootProcessDone())
 		{
 			System.out.println("************ Algorithm Completed *****************");
 			return true;
 		}
 		return AlgorithmCompleted;
 	}
-
-	public boolean checkAllDone() {
-		if (DoneQ.size() > 0){
+	
+	public boolean checkRootProcessDone() {
+		if (doneQ.size() > 0){
 			try {
-				this.msg = DoneQ.take();
-				if(msg.getProcessId() == RootProcess)
+				Message msg = doneQ.take();
+				if(msg.getProcessId() == rootProcessID)
 					return true;
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -136,7 +151,7 @@ public class MasterProcess {
 	}
 	
 	public boolean checkAllReadyToSend() {
-		if(readyToSendQ.size() == NumProcesses)
+		if(readyToSendQ.size() == numProcesses)
 			return true;
 		return false;
 	}
@@ -146,20 +161,16 @@ public class MasterProcess {
 			readyToSendQ.clear();
 		}
 	}
-
-	public void StartSampleTest() {
+	//for debug purposes. Need to get rid of it before submitting.
+	public void startSampleTest() {
 		while (!isAlgorithmCompleted()) {
-			if (CheckAllReady()) {
-				StartNewRound();
+			if (checkAllProcessesReady()) {
+				startNewRound();
 				RoundNo++;
 			}
 		}
 	}
-
-	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
-		return InterProcessQ;
-	}
-
+	
 	public static void main(String[] args) {
 		HashMap<Integer,ArrayList<Integer>> outputList= new HashMap<Integer,ArrayList<Integer>>();
 		BufferedReader inputReader = null;
@@ -199,9 +210,9 @@ public class MasterProcess {
 			// int[] ids = {1,2,3};
 			MasterProcess mp = new MasterProcess(MasterProcessID, ids);
 			if (n != -1)
-				mp.NumProcesses = n;
+				mp.numProcesses = n;
 			if (leaderId != -1)
-				mp.RootProcess = leaderId;
+				mp.rootProcessID = leaderId;
 			Processes[] process = new Processes[n];
 
 			for (int i = 0; i < n; i++) {
@@ -240,8 +251,8 @@ public class MasterProcess {
 			// since code does not stop automatically, need to forcefully stop
 			// it.
 			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 15) {
-				if (mp.CheckAllReady()) {
-					mp.StartNewRound();
+				if (mp.checkAllProcessesReady()) {
+					mp.startNewRound();
 					mp.RoundNo++;
 					while(!mp.checkAllReadyToSend());
 					mp.signalSend();
