@@ -180,7 +180,7 @@ public class MasterProcess {
 			if (args.length > 0 && args != null) {
 				inputReader = new BufferedReader(new FileReader(new File(args[0])));
 			} else {
-				inputReader = new BufferedReader(new FileReader(new File("input.txt")));
+				inputReader = new BufferedReader(new FileReader(new File("input2.txt")));
 			}
 
 			// Parse the input file. Order of expected input is number of nodes, node ids, leader id, edge weight matrix.
@@ -254,7 +254,7 @@ public class MasterProcess {
 
 			// since code does not stop automatically, need to forcefully stop
 			// it.
-			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 15) {
+			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 25) {
 				if (mp.checkAllProcessesReady()) {
 					mp.startNewRound();
 					mp.RoundNo++;
