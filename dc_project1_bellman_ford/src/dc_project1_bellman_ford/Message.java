@@ -6,77 +6,66 @@ package dc_project1_bellman_ford;
  * Harshil Shah (hxs155030)
  * Sagar Mehta (sam150930)
  * 
- * This represents a message which has processId, message type, distance from the root, and direction
- * from which it is coming.
+ * This represents a message which has processId, message type, distance from the root, and debug character information.
  */
 public class Message {
 
-	//type of messages
+	// Type of messages
 	public enum MessageType {
-		LEADER, READY, NEXT, IN, OUT, EXPLORE, ACK, NACK, DONE;
+		READY, NEXT, EXPLORE, ACK, NACK, DONE;
 	}
-	private int ProcessId;
-	private MessageType Mtype;
-	private double Distance;
-	private char FromDirection;
-	private int RootId;
+	// Process ID of sender
+	private int processID;
+	private MessageType mType;
+	private int distance;
+	private char debugCharacter;
 	
-	public Message(int PID, MessageType Mtype, double Hops, char FrmD){
-		this.ProcessId = PID;
-		this.Mtype = Mtype;
-		this.Distance = Hops;
-		this.FromDirection = FrmD;
+	public Message(int PID, MessageType Mtype, int dist, char debugChar){
+		this.processID = PID;
+		this.mType = Mtype;
+		this.distance = dist;
+		this.debugCharacter = debugChar;
 	}
-	
+	// getter/setter functions
 	public int getProcessId() {
-		return ProcessId;
+		return processID;
 	}
 
 	public void setProcessId(int processId) {
-		this.ProcessId = processId;
+		this.processID = processId;
 	}
 
-	public MessageType getMtype() {
-		return Mtype;
+	public MessageType getMessageType() {
+		return mType;
 	}
 
-	public void setMtype(MessageType mtype) {
-		this.Mtype = mtype;
+	public void setMessageType(MessageType mtype) {
+		this.mType = mtype;
 	}
 
-	public double getHops() {
-		return Distance;
+	public double getDistance() {
+		return distance;
 	}
 
-	public void setHops(double hops) {
-		this.Distance = hops;
-	}
-	
-	public void setHops(int hops) {
-		this.Distance = hops;
+	public void setDistance(int hops) {
+		this.distance = hops;
 	}
 
-	public char getFromDirection() {
-		return FromDirection;
+	public char getDebugChar() {
+		return debugCharacter;
 	}
 
-	public void setFromDirection(char fromDirection) {
-		this.FromDirection = fromDirection;
-	}
-	
-	public int getRootId() {
-		return RootId;
+	public void setDebugChar(char debugchar) {
+		this.debugCharacter = debugchar;
 	}
 
-	public void setRootId(int rootId) {
-		this.RootId = rootId;
-	}
-
+	@Override
 	public String toString() {
-		return "Process ID:" + this.ProcessId + " Message Type:" + this.Mtype + " Hops:" + this.Distance + " From Direction:" + this.FromDirection + " RootID:" + this.RootId;
+		return "Message [processID=" + processID + ", mType=" + mType + ", distance=" + distance + ", debugCharacter="
+				+ debugCharacter + "]";
 	}
-	
+	// Debug function
 	public String debug(){
-		return "From: " + this.ProcessId + " What: " + this.Mtype;
+		return "From: " + this.processID + " What: " + this.mType;
 	}
 }

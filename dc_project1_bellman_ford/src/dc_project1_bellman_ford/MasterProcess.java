@@ -23,46 +23,54 @@ import java.util.concurrent.BlockingQueue;
 
 public class MasterProcess {
 
-	//Need to check the usability of this variable.
-	private int MasterProcessId;
+	//for debug purposes.
+	private int masterProcessId;
+	
 	//masterQ -> The Q in which processes signal master they are ready for next round.
 	//doneQ -> The Q with 1 capacity where in Root process with write Done message once converge cast is complete on Root.
 	private BlockingQueue<Message> masterQ, doneQ;
+	
 	//readyToSendQ -> The Q to synchronize the sending of messages between processes so all the processes are at same level of execution of round.
 	private BlockingQueue<Message> readyToSendQ;
+	
 	//number of processes.
 	private int numProcesses;
-	//The ID of the root process, so the processes can be initialized accordingly.
+	
+	//The ID of the root process.
 	public static int rootProcessID;
 	
 	//for debugging purposes.
-	int RoundNo = 0;
+	int roundNo = 0;
+	
 	//To break off the while loop emulating the continuous run of system.
-	boolean AlgorithmCompleted = false;
+	boolean algorithmCompleted = false;
+	
 	// To send the NEXT message to all the processes.
-	private ArrayList<BlockingQueue<Message>> ProcessRoundQ = new ArrayList<BlockingQueue<Message>>();
+	private ArrayList<BlockingQueue<Message>> processRoundQ = new ArrayList<BlockingQueue<Message>>();
+	
 	// Input Q of processes to which other processes can write.
-	private ArrayList<BlockingQueue<Message>> InterProcessQ = new ArrayList<BlockingQueue<Message>>();
+	private ArrayList<BlockingQueue<Message>> interProcessQ = new ArrayList<BlockingQueue<Message>>();
+	
 	//Constructor
 	public MasterProcess(int MProcessId, int[] ProcessIds) {
-		this.MasterProcessId = MProcessId;
+		this.masterProcessId = MProcessId;
 		this.numProcesses = ProcessIds.length;
 
 		masterQ = new ArrayBlockingQueue<>(numProcesses);
 		doneQ = new ArrayBlockingQueue<>(5);
 		readyToSendQ = new ArrayBlockingQueue<>(numProcesses);
 
-		Message ReadyMessage;
-		BlockingQueue<Message> ProcessRQ, interProcessQueue;
+		Message readyMessage;
+		BlockingQueue<Message> processRQ, interProcessQueue;
 		for (int i = 0; i < numProcesses; i++) {
-			ReadyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
-			masterQ.add(ReadyMessage);
+			readyMessage = new Message(ProcessIds[i], Message.MessageType.READY, Integer.MIN_VALUE, 'X');
+			masterQ.add(readyMessage);
 			// Will only hold one NEXT message from master thread, but extra capacity of unseen contingencies.
-			ProcessRQ = new ArrayBlockingQueue<>(5);
+			processRQ = new ArrayBlockingQueue<>(5);
 			// Expecting there will be only one message per process to the each process. Extra capacity to avoid Queue full error.
 			interProcessQueue = new ArrayBlockingQueue<>(numProcesses*2);
-			ProcessRoundQ.add(ProcessRQ);
-			InterProcessQ.add(interProcessQueue);
+			processRoundQ.add(processRQ);
+			interProcessQ.add(interProcessQueue);
 		}
 	}
 
@@ -70,30 +78,30 @@ public class MasterProcess {
 		if (masterQ.size() < numProcesses) {
 			return false;
 		}
-		int Count = 0;
-		Message Msg;
+		int count = 0;
+		Message message;
 		for (int i = 0; i < numProcesses; i++) {
 			try {
-				Msg = masterQ.take();
-				if (Msg.getMtype() != Message.MessageType.READY) {
+				message = masterQ.take();
+				if (message.getMessageType() != Message.MessageType.READY) {
 					return false;
 				}
-				if (Msg.getMtype() == Message.MessageType.READY) {
-					Count++;
+				if (message.getMessageType() == Message.MessageType.READY) {
+					count++;
 				}
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		if (Count == numProcesses) {
+		if (count == numProcesses) {
 			return true;
 		}
 		return false;
 	}
 	
 	public void startNewRound() {
-		Iterator<BlockingQueue<Message>> iter = ProcessRoundQ.iterator();
+		Iterator<BlockingQueue<Message>> iter = processRoundQ.iterator();
 		BlockingQueue<Message> q;
 		Message msg;
 		masterQ.clear();
@@ -102,7 +110,7 @@ public class MasterProcess {
 			while (iter.hasNext()) {
 				q = iter.next();
 				q.clear();
-				msg = new Message(MasterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
+				msg = new Message(masterProcessId, Message.MessageType.NEXT, Integer.MIN_VALUE, 'X');
 				q.add(msg);
 			}
 		}
@@ -121,20 +129,20 @@ public class MasterProcess {
 	}
 
 	public ArrayList<BlockingQueue<Message>> getProcessRoundQ() {
-		return ProcessRoundQ;
+		return processRoundQ;
 	}
 
 	public ArrayList<BlockingQueue<Message>> getInterProcessQ() {
-		return InterProcessQ;
+		return interProcessQ;
 	}
 
 	public boolean isAlgorithmCompleted() {
 		if (checkRootProcessDone())
 		{
 			System.out.println("************ Algorithm Completed *****************");
-			return true;
+			algorithmCompleted = true;
 		}
-		return AlgorithmCompleted;
+		return algorithmCompleted;
 	}
 	
 	public boolean checkRootProcessDone() {
@@ -162,15 +170,6 @@ public class MasterProcess {
 			readyToSendQ.clear();
 		}
 	}
-	//for debug purposes. Need to get rid of it before submitting.
-	public void startSampleTest() {
-		while (!isAlgorithmCompleted()) {
-			if (checkAllProcessesReady()) {
-				startNewRound();
-				RoundNo++;
-			}
-		}
-	}
 	
 	@SuppressWarnings("deprecation")
 	public static void main(String[] args) {
@@ -180,7 +179,7 @@ public class MasterProcess {
 			if (args.length > 0 && args != null) {
 				inputReader = new BufferedReader(new FileReader(new File(args[0])));
 			} else {
-				inputReader = new BufferedReader(new FileReader(new File("input2.txt")));
+				inputReader = new BufferedReader(new FileReader(new File("input.txt")));
 			}
 
 			// Parse the input file. Order of expected input is number of nodes, node ids, leader id, edge weight matrix.
@@ -194,26 +193,27 @@ public class MasterProcess {
 				s = inputReader.readLine();
 			}
 
-			//Saving number of nodes/processes
+			// Saving number of nodes/processes
 			n = new Integer(input.get(0));
 			
-			//Saving Node/Process Id
+			// Saving Node/Process Id
 			int[] ids = new int[n];			
 			String[] processIds = input.get(1).split(" ");
 			for (int i = 0; i < n; i++) {
 				ids[i] = new Integer(processIds[i]);
 			}
 			
-			//Saving leader Id
+			// Saving leader Id
 			leaderId = new Integer(input.get(2));
 			
-			//Saving Edge weights
+			// Saving Edge weights
 			String[][] neighbours = new String[n][n];
 			for (int i = 3; i < n + 3; i++) {
 				neighbours[i - 3] = input.get(i).trim().replace("  ", " ").split(" ");
 			}
-
-			int MasterProcessID = 0;
+			
+			// Setup the processes.
+			int MasterProcessID = -1;
 			MasterProcess mp = new MasterProcess(MasterProcessID, ids);
 			if (n != -1)
 				mp.numProcesses = n;
@@ -242,7 +242,7 @@ public class MasterProcess {
 				process[i].setQRound(mp.getProcessRoundQ().get(i));
 
 			}
-
+			// Create process threads and get them started.
 			Thread[] T = new Thread[n];
 			for (int i = 0; i < n; i++) {
 				process[i].setQMaster(mp.getMasterQ());
@@ -251,17 +251,16 @@ public class MasterProcess {
 				T[i] = new Thread(process[i]);
 				T[i].start();
 			}
-
-			// since code does not stop automatically, need to forcefully stop
-			// it.
-			while (!mp.isAlgorithmCompleted() && mp.RoundNo < 25) {
+			// Continuous running of the algorithm until shortest path tree is not built.
+			while (!mp.isAlgorithmCompleted()) {
 				if (mp.checkAllProcessesReady()) {
 					mp.startNewRound();
-					mp.RoundNo++;
+					mp.roundNo++;
 					while(!mp.checkAllReadyToSend());
 					mp.signalSend();
 				}
 			}
+			// Termination step.
 			for (int i = 0; i < n; i++) {
 				T[i].stop();
 			}
@@ -274,7 +273,7 @@ public class MasterProcess {
 				}
 			}
 			
-			//Printing nodes with parent and ditance from root.
+			// Printing nodes with parent and distance from root.
 			for(int i = 0;i<n;i++){
 				if(i!=rootProcessID)
 				System.out.println("Process No: "+i+" Parent: " +process[i].getParentID()+ " distance: " + process[i].getDistanceFromRoot());
@@ -290,7 +289,7 @@ public class MasterProcess {
 				}
 			}
 			
-			//Printing adjacency list
+			// Printing adjacency list
 			System.out.println("******************* Adjacency List *******************");
 			for (Map.Entry<Integer, ArrayList<Integer>> entry : outputList.entrySet()) {
 				if(entry.getKey()>=0){
